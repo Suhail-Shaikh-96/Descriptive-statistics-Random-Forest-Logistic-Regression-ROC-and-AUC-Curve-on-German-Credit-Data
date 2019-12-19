@@ -1,0 +1,486 @@
+---
+title: "Random Forest and Logistic Regression"
+author: "Suhail Shaikh"
+date: "12/19/2019"
+output: html_document
+---
+
+
+# Q.2.a) What is the proportion of "Good" to "Bad" cases? Obtain descriptions of the predictor (independent) variables mean, standard deviations, etc. for real-values attributes, frequencies of di???erent category values. Look at the relationship of the input variables with the Target variable. Anything noteworthy in the data? Please include support (graphs, hypothesis testing, etc) for your observations
+```{r a ,echo=TRUE}
+
+library(dplyr)
+library(readxl)
+GermanCred <- read_excel("German Credit.xls")
+
+##changing Data types of all the following attribute to factor..
+GermanCred <-mutate(GermanCred,
+                       CHK_ACCT = as.factor(CHK_ACCT),
+                       HISTORY = as.factor(HISTORY),
+                       NEW_CAR = as.factor(NEW_CAR),
+                       USED_CAR = as.factor(USED_CAR),
+                       FURNITURE = as.factor(FURNITURE),
+                       EDUCATION = as.factor(EDUCATION),
+                       RETRAINING = as.factor(RETRAINING),
+                       SAV_ACCT= as.factor(SAV_ACCT),
+                       EMPLOYMENT = as.factor(EMPLOYMENT),
+                       MALE_DIV=as.factor(MALE_DIV),
+                       MALE_SINGLE = as.factor(MALE_SINGLE),
+                       MALE_MAR_or_WID = as.factor(MALE_MAR_or_WID),
+                       GUARANTOR = as.factor(GUARANTOR),
+                       PRESENT_RESIDENT = as.factor(PRESENT_RESIDENT),
+                       REAL_ESTATE = as.factor(REAL_ESTATE),
+                       PROP_UNKN_NONE =as.factor(PROP_UNKN_NONE),
+                       OTHER_INSTALL = as.factor(OTHER_INSTALL),
+                       RENT = as.factor(RENT),
+                       OWN_RES = as.factor(OWN_RES),
+                       JOB = as.factor(JOB),
+                       TELEPHONE = as.factor(TELEPHONE),
+                       FOREIGN = as.factor(FOREIGN),
+                       RESPONSE = as.factor(RESPONSE))
+#Proportion of good to bad cases
+good_bad <- table(GermanCred$RESPONSE)
+prop.table(good_bad)
+
+#Description of Independent Variables
+library(psych)
+describe(GermanCred)
+
+library(ggplot2)
+
+###we are checking relation of individual independent variable with dependent variables.
+### using Histograms, Barplots and Box plots..
+library(ggplot2)
+#relation between duration and response
+ggplot(GermanCred, aes(x = RESPONSE, y= DURATION, fill = RESPONSE))+geom_boxplot()+xlab("Response")+ylab("duration")
+# above box plot shows that Median AGE for good response is less than bad responses. It indicates a relation with dependent variable.
+
+# relation between amount
+ggplot(GermanCred, aes(x = RESPONSE, y= AMOUNT, fill = RESPONSE))+geom_boxplot()+xlab("Response")+ylab("AMOUNT")
+
+# not much of difference to be observed from Box plot for amount variable.
+# installment rate
+
+ggplot(GermanCred, aes(factor(INSTALL_RATE), ..count..))+ geom_bar(aes(fill=RESPONSE),position = "dodge")+xlab("Installment Rates")
+# Barplot for Install Rate shows huge variation, For Installment rates 2,4 there is high percentage for Good responses.
+ggplot(GermanCred, aes(x = RESPONSE, y = INSTALL_RATE, fill = RESPONSE ))+ geom_boxplot()+xlab("Installment Rates")
+#Median installment rate for good response is far superior than bad ones....this is definately a significant variable.....
+# Age
+ggplot(GermanCred, aes(x = RESPONSE, y = AGE, fill = RESPONSE ))+ geom_boxplot()+xlab("AGE")
+###median age for good responses are greater than bad responses....variable looking significant....
+
+#categorical variable  relations
+
+ggplot(GermanCred, aes(CHK_ACCT,..count..))+geom_bar(aes(fill=RESPONSE), position="dodge")
+## huge variation observed for good responses for CHK_ACC value = 3. definately a significant variable
+
+#credit history
+ggplot(GermanCred, aes(HISTORY,..count..))+geom_bar(aes(fill=RESPONSE), position="dodge")
+#variation observed at history = 2,4. good responses outnumbers bad responses at these two levels....definately a significant variable.
+
+#saving account
+ggplot(GermanCred, aes(SAV_ACCT,..count..))+geom_bar(aes(fill=RESPONSE), position="dodge")
+#good responses outnumbers bad responses for Sav_ACC level zero. We can consider this for significance level.
+
+
+#other install
+ggplot(GermanCred, aes(OTHER_INSTALL,..count..))+geom_bar(aes(fill=RESPONSE), position="dodge")
+
+#New_car
+ggplot(GermanCred, aes(NEW_CAR,..count..))+geom_bar(aes(fill=RESPONSE), position="dodge")
+
+##people with no car has good response compared to people with car.
+#own residence
+ggplot(GermanCred, aes(OWN_RES,..count..))+geom_bar(aes(fill=RESPONSE), position="dodge")
+#People wix`th own residence are more efficient at paying loans than no house.
+#building Logistics regression model
+
+#building linear regression model on Numerical variables.
+attach(GermanCred)
+
+library(caTools)
+# splitting data in test and train
+sample.split(RESPONSE,SplitRatio = .7) -> split_index
+train_d <- subset(GermanCred, split_index == T)
+test_d <- subset(GermanCred, split_index == F)
+
+#Building logistics regression to find out impactful independent variable
+
+#install Rcmdr for logistics regression
+library(Rcmdr)
+# logistics regression model on numeric data variables with train data
+attach(GermanCred)
+
+# logistics regression model on numeric data variables with German data
+
+  #full = glm(RESPONSE~., family = binomial(logit), data = GermanCred)
+  #final = stepwise(full, direction = "forward", criterion = "BIC", data = GermanCred)
+#summary(final)
+
+#BIC Method selects variables like:
+#Coefficients:
+#        Estimate Std. Error z value Pr(>|z|)    
+#(Intercept)         0.49704    0.23735   2.094 0.036249 *  
+ #       CHK_ACCT[T.1]       0.49078    0.18708   2.623 0.008708 ** 
+  #      CHK_ACCT[T.2]       1.19147    0.33869   3.518 0.000435 ***
+   #     CHK_ACCT[T.3]       1.98522    0.20979   9.463  < 2e-16 ***
+    #    DURATION           -0.04357    0.00658  -6.621 3.56e-11 ***
+     #   USED_CAR[T.1]       1.05581    0.31729   3.328 0.000876 ***
+     #   OWN_RES[T.1]        0.49442    0.17074   2.896 0.003782 ** 
+     #   OTHER_INSTALL[T.1] -0.68440    0.19057  -3.591 0.000329 ***
+      #  GUARANTOR[T.1]      1.09959    0.39365   2.793 0.005217 ** 
+       # MALE_SINGLE[T.1]    0.48216    0.16027   3.009 0.002625 ** 
+        #NEW_CAR[T.1]       -0.49876    0.18139  -2.750 0.005967 **
+
+#BIC Method selects variables like: CHK_ACCT, DURATION, INSTALL_RATE,OTHER_INSTALL
+
+
+#Logistic regression through AIC variable selection
+  #full = glm(RESPONSE~., family = binomial(logit), data = GermanCred)
+  #final = stepwise(full, direction = "backward",data = GermanCred)
+#summary(final)
+
+#Coefficients:
+ #                 Estimate Std. Error z value Pr(>|z|)    
+  #(Intercept)     1.602e+00  3.198e-01   5.010 5.45e-07 ***
+   #CHK_ACCT1       5.290e-01  1.882e-01   2.810 0.004947 ** 
+    #CHK_ACCT2       1.137e+00  3.403e-01   3.341 0.000836 ***
+     #CHK_ACCT3       2.081e+00  2.110e-01   9.864  < 2e-16 ***
+      #DURATION       -3.016e-02  8.324e-03  -3.624 0.000290 ***
+       #NEW_CAR1       -5.344e-01  1.829e-01  -2.921 0.003486 ** 
+        #USED_CAR1       9.819e-01  3.207e-01   3.062 0.002199 ** 
+         #AMOUNT         -1.063e-04  3.821e-05  -2.781 0.005419 ** 
+          #INSTALL_RATE   -2.661e-01  7.964e-02  -3.341 0.000834 ***
+           #MALE_SINGLE1    6.398e-01  1.645e-01   3.889 0.000101 ***
+            #GUARANTOR1      1.046e+00  3.902e-01   2.681 0.007335 ** 
+             #OTHER_INSTALL1 -6.623e-01  1.915e-01  -3.458 0.000544 ***
+              #AIC Method selects variables like: CHK_ACCT, DURATION, USED_CAR,OTHER_INSTALL
+
+
+#building Logistics regression model
+full = glm(RESPONSE~CHK_ACCT+AMOUNT+HISTORY+INSTALL_RATE+DURATION+OTHER_INSTALL, family = binomial, data = train_d)
+#summary(full)
+
+
+
+#using BIC method to select variable in LR
+#final = stepwise(full, direction = "forward", criterion = "BIC", data = train_d)
+#summary(final)
+
+# Logistics regression suggest that variable AGE and Duration are of most significance among others.
+p <- predict(full, type="response", test_d)
+p.survive <- round(p)
+#changing class of variable p.survive
+p.survive <- as.factor(p.survive)
+
+library(caret)
+confusionMatrix(p.survive, test_d$RESPONSE)
+
+#We also checked the accuracy of the logistice regression model on this data for reference and made confusion matrix for the same.we used the same set of variable which we got from BIC and AIC. This model fitted with 24% OOB error.
+
+```
+
+
+### 2.b)Divide the data randomly into training (60%) and test (40%) partitions, and develop the "best" classi???cation tree and random forest models to predict Good and Bad customers. Try to ???nd the best values of the parameters needed in your models. In your decision tree model, what are the best nodes for classifying "Good" applicants? Output rules corresponding to these. Please explain why you chose these nodes.   
+```{r b ,echo=TRUE}
+set.seed(2)
+sample=sample(1:nrow(GermanCred),floor(nrow(GermanCred)*0.6))
+train <-GermanCred[sample, ]
+test <-GermanCred[-sample,]
+nrow(train)
+nrow(test)
+
+#install.packages("randomForest")
+library(randomForest)
+
+#attributes found significant from logistic regression model, performed on this data earlier.
+#CHK_ACCT+AMOUNT+DURATION+INSTALL_RATE+OTHER_INSTALL+SAV_ACCT+HISTORY
+model1 <- randomForest(RESPONSE~CHK_ACCT+AMOUNT+DURATION+INSTALL_RATE+OTHER_INSTALL+SAV_ACCT+HISTORY+OWN_RES,data=train,ntree=500,mtry=2,importance=TRUE,proximity=TRUE)
+#model1
+
+library(caret)
+
+#Testing on Training dataset
+#Predictions on training dataset
+Predict_Train<-predict(model1,train,type = "class")
+
+#Confusion matrix for evaluating the model on training dataset
+confusionMatrix(Predict_Train,train$RESPONSE)
+#The accuracy of Random Forest on Training data is 96.83%
+
+
+#Testing on Testing dataset
+#Predictions on training dataset
+Predict_Test<-predict(model1,test,type = "class")
+#Confusion matrix for evaluating the model on Testing dataset
+confusionMatrix(Predict_Test,test$RESPONSE)
+#The accuracy of Random Forest on Training data is 74.5%
+
+#used to find optimal value of Mtry
+t <-tuneRF(x=train[,c("CHK_ACCT","AMOUNT","DURATION","INSTALL_RATE","OTHER_INSTALL","SAV_ACCT","HISTORY","OWN_RES")],y=train$RESPONSE,
+             stepFactor = 0.5,
+             plot=TRUE,
+           trace=TRUE,
+             ntreetry=300,
+             doBest = TRUE,
+           improve=0.05)
+
+#The mtry=2 has minimum OOB error. So selecting mtry=2 as tuning parameter
+
+#Checking Importance of Attributes Created RF model "model2" with all attributes. 
+train_New <- train[,c(-1,-8,-18)]
+model2 <- randomForest(RESPONSE~.,data=train_New,ntree=500,mtry=2,importance=TRUE,proximity=TRUE)
+
+varImpPlot(model2,sort=T) #Graph of Values of important variables 
+importance(model2) #values as per importance
+
+#Since meanDecreaseAccuracy is highest for variables CHECKING_Acount, Duration,History,Guarantor,Used car, New_car, Own_residence these are more important vattributes as if these variables are removed decrease in accuracy will be highest.
+#Since meanDecreaseGini is highest for variables Amount,CHECKING_Acount, Duration,Age,Employment,Savg_Act these are more important vattributes as if these variables are removed the terminal nodes will not be pure.
+
+#Which predictor variables are actually used in randomForest
+varUsed(model2)
+#This gives the importance of attributes in making RandomForest model2. Higher the value more importance is the attribute.
+
+#Partial dependence plot
+#How the value of Response depend on Numerical values like shown below.
+train_New <-as.data.frame(train_New)
+#This graph shows that the probability of getting class zero increases with increase in Duration.
+partialPlot(model2,train_New,DURATION,"0")
+
+#This graph shows that the probability of getting class One decreases with increase in Duration.
+partialPlot(model2,train_New,DURATION,"1")
+
+#This graph shows that the probability of getting class zero increases with increase in Amount after the amount of 5000.
+partialPlot(model2,train_New,AMOUNT,"0")
+
+#This graph shows that the probability of getting class one increass till amount=5000 and decreases with increase in Amount after the amount of 5000.
+partialPlot(model2,train_New,AMOUNT,"1")
+
+#This graph shows that the probability of getting class zero decreses till Age=40.So the people who are less than 40 are  good creditos and increases with increase in Age after the age of 40.So people who are above age 40 are not good creditors as probability of class zero increases.
+partialPlot(model2,train_New,AGE,"0")
+
+#This graph shows that the probability of getting class one increases till Age=40.So the people who are less than 40 are  good creditos and decreases with increase in Age after the age of 40.So people who are above age 40 are not good creditors as probability of class one decreases.
+partialPlot(model2,train_New,AGE,"1")
+
+
+#Extracting single tree in RF
+ #getTree(model2,1,labelVar = TRUE)
+  #1st RF tree. -1 indicates its terminal node and has prediction non-NA value.
+
+
+#Making Decision tree
+library(rpart)
+library(rpart.plot)
+model_tree <-rpart(RESPONSE~CHK_ACCT+AMOUNT+DURATION+INSTALL_RATE+OTHER_INSTALL+SAV_ACCT+HISTORY+OWN_RES,data=train,method="class")
+#summary(model_tree)
+
+##Plotting decision tree
+rpart.plot(model_tree)
+
+#The support for predicting class One is happening when we are splitting on attributes like Checking_Act, Duration and Own residence. Support and confidence for same are:
+  #Checking_Act : support=44%, confidence=0.86.Also support=56%, confidence=0.57
+    #Duration : support=46% confidence=0.51
+       #Own residence: support=28%, confidence=0.59
+
+#Predicting on train data
+Predict_Train_tree <- predict(model_tree,train,type ="class")
+
+#Confusion Matrix for evaluating the model on training dataset
+#The accuracy of decision tree model model_tree is 79%.
+confusionMatrix(Predict_Train_tree,train$RESPONSE)
+
+
+#Test data
+#Predicting on test data
+Predict_Test_tree <- predict(model_tree,test,type ="class")
+
+#Confusion Matrix for evaluating the model on training dataset
+#The accuracy of decision tree model model_tree is 73.5%.
+confusionMatrix(Predict_Test_tree,test$RESPONSE)
+
+#Comparing Decision tree and Random Forest
+#The accuracy of the training data on Random Forest is 95.83% and accuracy of training data on Decision Tree is 80.5%
+#The accuracy of the testing data on Random Forest is 73.5% and accuracy of testing data on Decision Tree is 70.5%
+
+```
+
+
+### 2.c)  Which model is a better model? Why?
+```{r c ,echo=TRUE}
+tab_RF<- table(Predict_Test,test$RESPONSE)
+#Profit for Random Forest Model
+Profit_RF <- -500*tab_RF[2,1]+100*tab_RF[2,2]
+Profit_RF
+
+
+tab_tree<- table(Predict_Test_tree,test$RESPONSE)
+#Profit for Decision Tree Model
+Profit_tree <- -500*tab_tree[2,1]+100*tab_tree[2,2]
+Profit_tree
+
+
+#Comparing Decision tree and Random Forest
+  #The profit for the Random Forest model is -10900 DM whereas the profit for the Decision tree model is -14600.
+    #As profit for the Random Forest model is more than the Decision tree we will choose Random Forest model. 
+```
+
+
+### 2.d) The classes returned by your models are based on the cutooff point of 0.5. Can you improve the performance your model by changing this cutooff. Explain how you approach this. 
+```{r d ,echo=TRUE}
+library(randomForest)
+model3_RF <- randomForest(RESPONSE~CHK_ACCT+AMOUNT+DURATION+OTHER_INSTALL+SAV_ACCT+HISTORY+OWN_RES+EMPLOYMENT+AGE,data=train,ntree=500,mtry=2,importance=TRUE,proximity=TRUE)
+
+
+#Testing on Training dataset
+#Predictions on training dataset
+Predict_Train_Model3_RF<-predict(model3_RF,train,type = "class")
+
+tab <-table(Predict_Train_Model3_RF,train$RESPONSE)
+tab
+
+#Misclassification Error
+  #1-sum(diag(tab))/sum(tab)
+    #The misclassification error on training dataset is just 0.833%.
+
+#confusionMatrix(Predict_Train_Model3_RF,train$RESPONSE)
+  #Accuracy of 99.17
+
+#Testing on Testing dataset
+#Predictions on Testing dataset
+Predict_Test_Model3_RF<-predict(model3_RF,test,type = "class")
+
+tab_test <-table(Predict_Test_Model3_RF,test$RESPONSE)
+tab_test
+#Misclassification Error
+1-sum(diag(tab))/sum(tab)
+ #The misclassification error on training dataset is just 0.833%.
+
+#confusionMatrix(Predict_Test_Model3_RF,test$RESPONSE)
+  #Accuracy of 73.25
+
+
+#Model Performance Evaluation
+library(ROCR)
+Predict_Eval<-predict(model3_RF,test,type = "prob")
+
+#Comparing predicted and actual response for 1st six rows
+  #head(Predict_Eval)
+    #head(train$RESPONSE)
+
+
+hist(Predict_Eval)
+#It shows the frequency of Predicted probability. So the frequency of predicting the probability between 0.4 and 0.6 is maximum.
+#Currently the model is built using the treshold of 0.5 but if we use cut_off 0.4 or 0.6 we may have another type of classification,accuracy and misclassification will change.
+
+
+Predict_Eval_New <-prediction(Predict_Eval[,2],test$RESPONSE) #Subset is added on Predict_Eval so that only the column with class 1 is selected and not both columns with class 1 and 0.
+eval <- performance(Predict_Eval_New ,"acc") #acc stands for accuracy values
+plot(eval)
+#It shows that the accuracy is maximum around cutoff 0.4 to 0.6 and after treshold of 0.6 the accuracy decreases.
+
+
+#Identify best cut-off value and accuracy at that value
+max <-which.max(slot(eval,"y.values")[[1]])
+acc <- slot(eval,"y.values")[[1]][max]
+cut_off <- slot(eval,"x.values")[[1]][max]
+
+#Here it shows that the Accuracy will be maximum at cut-off of 0.432 and maximum accuracy is 75.25%.
+#Hence the performance(Accuracy) of the model can be increased if we change the cut-off frequency (treshold) to 0.432. 
+print(c(Accuracy=acc,Cutoff=cut_off))
+
+
+#ROC Curve for Decision Tree
+Predict_Test_tree_new  <- predict(model_tree,test,type ="prob")
+pred_tree <- prediction(Predict_Test_tree_new[,2],test$RESPONSE)
+roc_tree <- performance(pred_tree,"tpr","fpr")
+plot(roc_tree,
+     colorize=T,
+     main="ROC Curve for Decision Tree"
+)
+abline(a=0, b=1)
+
+auc_tree <-performance(pred_tree,"auc")
+auc_tree <-unlist(slot(auc_tree,"y.values"))
+auc_tree
+#The area under the AUC curve is 75.24% which is more compared to the random curve which has the AUC of 0.5.
+#legend(0.6,0.2,auc,title="AUC",cex=1)
+
+minauc_t <- min(round(auc_tree, digits = 2))
+maxauc_t <- max(round(auc_tree, digits = 2))
+minauct_t <- paste(c("min(AUC) = "), minauc_t, sep = "")
+maxauct_t <- paste(c("max(AUC) = "), maxauc_t, sep = "")
+
+legend(0.7, 0.5, c(minauct_t, maxauct_t, "\n"), border = "white", cex = 0.6, box.col = "blue")
+abline(a= 0, b=1)
+
+
+
+#ROC Curve for Random Forest
+pred <- prediction(Predict_Eval[,2],test$RESPONSE)
+roc <- performance(pred,"tpr","fpr")
+plot(roc,
+     colorize=T,
+     main="ROC Curve"
+     )
+abline(a=0, b=1)
+
+
+auc <-performance(pred,"auc")
+auc <-unlist(slot(auc,"y.values"))
+auc
+
+#The area under the AUC curve is 77.4% which is more compared to the random curve which has the AUC of 0.5.
+#legend(0.6,0.2,auc,title="AUC",cex=1)
+
+minauc = min(round(auc, digits = 2))
+maxauc = max(round(auc, digits = 2))
+minauct = paste(c("min(AUC) = "), minauc, sep = "")
+maxauct = paste(c("max(AUC) = "), maxauc, sep = "")
+legend(0.7, 0.5, c(minauct, maxauct, "\n"), border = "white", cex = 0.6, box.col = "blue")
+abline(a= 0, b=1)
+
+
+#Comparing the ROC curves for Random Forest and Decision tree
+par(mfrow=c(1,2))
+plot(roc,
+     colorize=T,
+     main="ROC Curve for Random Forest"
+)
+abline(a=0, b=1)
+legend(0.7, 0.5, c(minauct, maxauct, "\n"), border = "white", cex = 0.5, box.col = "blue")
+
+
+plot(roc_tree,
+     colorize=T,
+     main="ROC Curve for Decision Tree"
+)
+abline(a=0, b=1)
+legend(0.7, 0.5, c(minauct_t, maxauct_t,auc_tree, "\n"), border = "white", cex = 0.5, box.col = "blue")
+
+
+#Eucledian Function
+Eucledian_function<- function(x,y,p) {
+  
+  d<-sqrt(( (x-0)^2  ) +  ( (y-1  )^2 ))
+  index<-which(d==min(d))
+  c(recall = y[[index]],specificity= 1-x[[index]] ,cutoff = p[[index]])
+}
+
+roc@alpha.values
+mapply(Eucledian_function,roc@x.values,roc@y.values,roc@alpha.values)
+
+#In order to decide the best cut-off point we calculated the distance of all points on the roc curve from (1,0) i.e Recall=1 and False Positive=0.
+#We found out that the cutoff=0.156 has the least distance from the best point, so the True positive will be maximum,false positive will be minimum and hence profit will be maximum at this cutoff. Hence the performance of model can be improved by changing the cut-off to 0.156.
+
+```
+
+### 2.e)  Summarize your Finndings.
+```{r e ,echo=TRUE}
+#Since the Random Forest algorithm is based on the Bootstrap Aggregation, the Random forest make a set of decision trees with attributes at nodes such that there is minimum correlation between the decision trees which eventually helps in giving the different outputs and hence the variance is minimized. In addition to it, the decision tree is based on the specific set of rules(like Info gain or gini index) but in the random forest since the process of splitting and root nodes finding is random which gives different outputs without much correlation. Also, Random forest avoids overfitting. Hence the Random Forest is preferred compared to decision trees.We have found similar result over here as well which is backed by accuracy figures for all the three models, however accuracy is debatable matric to determine effectiveness of a model. This case asks for a model which minimizes cost and maximizes profit. We have calculated profit matric for all the models and concluded that random forest model is best of all available models to predict profit component in terms of opportunity cost.
+
+#Accuracy:                                   
+#Random Forest:74.5%                         
+#Decision Tree: 70.5%
+#Logistic regression: 74%
+```
+
